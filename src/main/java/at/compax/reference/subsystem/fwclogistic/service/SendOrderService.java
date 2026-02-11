@@ -1,6 +1,11 @@
 package at.compax.reference.subsystem.fwclogistic.service;
 
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -25,8 +30,6 @@ public class SendOrderService extends AbstractService implements SubsystemServic
   private final OrderRequestTranslator orderRequestTranslator;
   private final Generator generator;
   private final ObjectMapper mapper;
-  @Value("${fwc.simulation:true}")
-  private boolean simulation;
 
   @Override
   public PayloadCreationResponseModel createRequest(PayloadCreationModel model) {
@@ -47,11 +50,12 @@ public class SendOrderService extends AbstractService implements SubsystemServic
 
     try {
       final SendOrderRequest request = generator.read(model, SendOrderRequest.class);
-      log.info("FWC SendOrder | Simulation={} | Payload={}", simulation, request);
+      boolean isSimulation = itosConfig.isSimulationEnabled(request.getClientId());
+      log.info("FWC SendOrder | Simulation={} | Payload={}", isSimulation, request);
 
-      PayloadSendingResponseModel response = simulation
+      PayloadSendingResponseModel response = isSimulation
           ? simulateFwcSendOrder(request, valuesBuilder)
-          : callFwcSendOrder(model, valuesBuilder);
+          : callFwcSendOrder(request, valuesBuilder);
 
       return response;
 
@@ -130,8 +134,26 @@ public class SendOrderService extends AbstractService implements SubsystemServic
 
 
 
-  private PayloadSendingResponseModel callFwcSendOrder(PayloadSendingModel model, ValuesBuilder valuesBuilder) {
-    // implement after get testbed from fwc site
+  private PayloadSendingResponseModel callFwcSendOrder(SendOrderRequest request, ValuesBuilder valuesBuilder) {
+    String uri = fwclogisticBaseUrl + "/rels/orders/item";
+    HttpHeaders headers = getHeaders(request.getClientId());
+    HttpEntity<SendOrderRequest> entity = new HttpEntity<>(request, headers);
+
+    try {
+      ResponseEntity<Map> response = execute(uri, HttpMethod.POST, entity, Map.class);
+      if (response.getStatusCode().is2xxSuccessful()) {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_SUCCESS);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "Send order successful");
+      } else {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "FWC API error: " + response.getStatusCode());
+      }
+    } catch (Exception e) {
+      log.error("Error calling FWC API", e);
+      valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+      valuesBuilder.addValue(ResponseConstants.MESSAGE, e.getMessage());
+    }
+
     return new PayloadSendingResponseModel()
         .values(valuesBuilder.toValues());
   }

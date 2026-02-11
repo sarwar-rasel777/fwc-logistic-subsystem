@@ -46,6 +46,16 @@ public class ItosConfig {
     return consumer.stringValue(ItosConstants.FWC_FULFILLMENT_ORDER_OUTBOUND_ENDPOINT);
   }
 
+  public boolean isSimulationEnabled(Long clientId) {
+    try {
+      ValuesConsumer consumer = valuesConsumerFactory.consumer(getConfigs(clientId));
+      return consumer.booleanValue(ItosConstants.FWC_SIMULATION);
+    } catch (Exception e) {
+      log.warn("FWC_SIMULATION not found in ITOS for client {}, defaulting to false", clientId);
+      return false;
+    }
+  }
+
   private Map<String, ValueTypeModel> getConfigs(Long clientId) {
     ConfigurationModel configModel;
     if (clientId == null) configModel = configuration.getConfiguration();
