@@ -16,6 +16,7 @@ import at.compax.foundation.subsystem.api.model.v2.PayloadSendingResponseModel;
 import at.compax.foundation.subsystem.api.model.v2.ValuesBuilder;
 import at.compax.foundation.subsystem.service.component.service.SubsystemService;
 
+import at.compax.reference.subsystem.fwclogistic.constants.Constants;
 import at.compax.reference.subsystem.fwclogistic.constants.ResponseConstants;
 import at.compax.reference.subsystem.fwclogistic.generator.Generator;
 import at.compax.reference.subsystem.fwclogistic.model.request.QueryOrderRequest;
@@ -124,6 +125,9 @@ public class GetOrderService extends AbstractService implements SubsystemService
       if (response.getStatusCode().is2xxSuccessful()) {
         valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_SUCCESS);
         valuesBuilder.addValue(ResponseConstants.MESSAGE, "Query order successful");
+        if (response.getBody() != null) {
+          valuesBuilder.addValue(Constants.VALUE, mapper.writeValueAsString(response.getBody()));
+        }
       } else {
         valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
         valuesBuilder.addValue(ResponseConstants.MESSAGE, "FWC API error: " + response.getStatusCode());
