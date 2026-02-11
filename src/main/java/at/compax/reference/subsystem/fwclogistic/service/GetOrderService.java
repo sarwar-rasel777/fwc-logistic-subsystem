@@ -20,7 +20,9 @@ import at.compax.reference.subsystem.fwclogistic.constants.Constants;
 import at.compax.reference.subsystem.fwclogistic.constants.ResponseConstants;
 import at.compax.reference.subsystem.fwclogistic.generator.Generator;
 import at.compax.reference.subsystem.fwclogistic.model.request.QueryOrderRequest;
+import at.compax.reference.subsystem.fwclogistic.model.response.FwcOrderQueryResponse;
 import at.compax.reference.subsystem.fwclogistic.tanslator.QueryOrderRequestTranslator;
+import at.compax.reference.subsystem.fwclogistic.utils.FwcDummyDataGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,6 +34,7 @@ public class GetOrderService extends AbstractService implements SubsystemService
   private final QueryOrderRequestTranslator requestTranslator;
   private final Generator generator;
   private final ObjectMapper mapper;
+  private final FwcDummyDataGenerator dummyDataGenerator;
 
   @Override
   public PayloadCreationResponseModel createRequest(PayloadCreationModel model) {
@@ -78,36 +81,45 @@ public class GetOrderService extends AbstractService implements SubsystemService
       ValuesBuilder valuesBuilder
   ) {
 
-    // client validation
-    if (request.getClientId() == null) {
+    try {
+      // client validation
+      if (request.getClientId() == null) {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "Client not found");
+
+        return new PayloadSendingResponseModel()
+            .values(valuesBuilder.toValues());
+      }
+
+      // reference validation
+      if (request.getReferenceNum() == null || request.getReferenceNum().isBlank()) {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "Invalid reference number");
+
+        return new PayloadSendingResponseModel()
+            .values(valuesBuilder.toValues());
+      }
+
+      // simulate order not found
+      if (request.getReferenceNum().startsWith("404")) {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "Order not found");
+
+        return new PayloadSendingResponseModel()
+            .values(valuesBuilder.toValues());
+      }
+
+      // success with dummy data
+      FwcOrderQueryResponse response = dummyDataGenerator.generateDummyOrderQueryResponse(request.getReferenceNum());
+      valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_SUCCESS);
+      valuesBuilder.addValue(ResponseConstants.MESSAGE, "Query order successful");
+      valuesBuilder.addValue(Constants.VALUE, mapper.writeValueAsString(response));
+
+    } catch (Exception e) {
+      log.error("Simulation failed", e);
       valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
-      valuesBuilder.addValue(ResponseConstants.MESSAGE, "Client not found");
-
-      return new PayloadSendingResponseModel()
-          .values(valuesBuilder.toValues());
+      valuesBuilder.addValue(ResponseConstants.MESSAGE, e.getMessage());
     }
-
-    // reference validation
-    if (request.getReferenceNum() == null || request.getReferenceNum().isBlank()) {
-      valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
-      valuesBuilder.addValue(ResponseConstants.MESSAGE, "Invalid reference number");
-
-      return new PayloadSendingResponseModel()
-          .values(valuesBuilder.toValues());
-    }
-
-    // simulate order not found
-    if (request.getReferenceNum().startsWith("404")) {
-      valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
-      valuesBuilder.addValue(ResponseConstants.MESSAGE, "Order not found");
-
-      return new PayloadSendingResponseModel()
-          .values(valuesBuilder.toValues());
-    }
-
-    // success
-    valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_SUCCESS);
-    valuesBuilder.addValue(ResponseConstants.MESSAGE, "Query order successful");
 
     return new PayloadSendingResponseModel()
         .values(valuesBuilder.toValues());
