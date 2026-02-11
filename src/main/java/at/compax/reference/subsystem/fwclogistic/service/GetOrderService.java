@@ -1,6 +1,11 @@
 package at.compax.reference.subsystem.fwclogistic.service;
 
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -110,8 +115,26 @@ public class GetOrderService extends AbstractService implements SubsystemService
 
 
 
-  private PayloadSendingResponseModel callFwcGetOrder(QueryOrderRequest model, ValuesBuilder valuesBuilder) {
-// implement after get testbed from fwc site
+  private PayloadSendingResponseModel callFwcGetOrder(QueryOrderRequest request, ValuesBuilder valuesBuilder) {
+    String uri = fwclogisticBaseUrl + "/orders/" + request.getReferenceNum();
+    HttpHeaders headers = getHeaders(request.getClientId());
+    HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+    try {
+      ResponseEntity<Map> response = execute(uri, HttpMethod.GET, entity, Map.class);
+      if (response.getStatusCode().is2xxSuccessful()) {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_SUCCESS);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "Query order successful");
+      } else {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "FWC API error: " + response.getStatusCode());
+      }
+    } catch (Exception e) {
+      log.error("Error calling FWC API", e);
+      valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+      valuesBuilder.addValue(ResponseConstants.MESSAGE, e.getMessage());
+    }
+
     return new PayloadSendingResponseModel()
         .values(valuesBuilder.toValues());
   }
