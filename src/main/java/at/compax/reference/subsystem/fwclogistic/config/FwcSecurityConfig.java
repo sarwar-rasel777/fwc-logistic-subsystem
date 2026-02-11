@@ -4,22 +4,20 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
-@EnableWebSecurity
-public class SecurityConfig {
+public class FwcSecurityConfig {
 
-  @Bean
-  @Order(1)
+  @Bean("fwcLogisticSecurityFilterChain")
+  @Order(0)
   public SecurityFilterChain fwcLogisticSecurityFilterChain(HttpSecurity http) throws Exception {
     http
         .csrf(AbstractHttpConfigurer::disable)
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/simulator/**", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-            .anyRequest().permitAll() // Allow all for now as per user's request for "no authentication"
+            .anyRequest().permitAll()
         );
     return http.build();
   }
