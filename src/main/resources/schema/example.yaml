@@ -1,0 +1,53 @@
+openapi: 3.0.3
+
+info:
+  title: Helloworld API
+  description: API defining the operations available in the Helloworld API
+  version: 0.1.0
+servers:
+  - url: "https://helloapi.apptocracy.com/v1"
+    description: Production API endpoint for the Hello World API
+
+components:
+  schemas:
+    DummyMessage:
+      required:
+        - name
+      type: object
+      properties:
+        name:
+          type: string
+        message:
+          type: string
+paths:
+  /hello:
+    post:
+      operationId: sayHello
+      description: say hello
+      security:
+        - ApiKeyAuth: [ ]
+
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: name of the individual to say hello to
+          schema:
+            type: string
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DummyMessage'
+        required: true
+
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DummyMessage"
+security:
+  - ApiKeyAuth: [ ]
