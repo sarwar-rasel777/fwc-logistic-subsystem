@@ -30,9 +30,6 @@ public class TokenService {
   @Autowired
   protected ItosConfig itosConfig;
 
-  @Value("${fwc.simulation:true}")
-  private boolean simulation;
-
   @Value("${fwc.logistic.base.url}")
   private String fwclogisticBaseUrl;
 
@@ -49,7 +46,8 @@ public class TokenService {
   public synchronized TokenResponse getTokens(Long clientId) {
 
     if (currentToken == null || currentToken.isExpired()) {
-      if (simulation) {
+      boolean isSimulation = itosConfig.isSimulationEnabled(clientId);
+      if (isSimulation) {
         currentToken = generateFakeToken(clientId);
       } else {
         currentToken = obtainNewToken(clientId, currentToken != null ? currentToken.getRefreshToken() : null);

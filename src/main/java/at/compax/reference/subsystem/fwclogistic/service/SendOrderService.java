@@ -30,8 +30,6 @@ public class SendOrderService extends AbstractService implements SubsystemServic
   private final OrderRequestTranslator orderRequestTranslator;
   private final Generator generator;
   private final ObjectMapper mapper;
-  @Value("${fwc.simulation:true}")
-  private boolean simulation;
 
   @Override
   public PayloadCreationResponseModel createRequest(PayloadCreationModel model) {
@@ -52,9 +50,10 @@ public class SendOrderService extends AbstractService implements SubsystemServic
 
     try {
       final SendOrderRequest request = generator.read(model, SendOrderRequest.class);
-      log.info("FWC SendOrder | Simulation={} | Payload={}", simulation, request);
+      boolean isSimulation = itosConfig.isSimulationEnabled(request.getClientId());
+      log.info("FWC SendOrder | Simulation={} | Payload={}", isSimulation, request);
 
-      PayloadSendingResponseModel response = simulation
+      PayloadSendingResponseModel response = isSimulation
           ? simulateFwcSendOrder(request, valuesBuilder)
           : callFwcSendOrder(request, valuesBuilder);
 

@@ -28,8 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class GetOrderService extends AbstractService implements SubsystemService {
 
-  @Value("${fwc.simulation:true}")
-  private boolean simulation;
   private final QueryOrderRequestTranslator requestTranslator;
   private final Generator generator;
   private final ObjectMapper mapper;
@@ -56,9 +54,10 @@ public class GetOrderService extends AbstractService implements SubsystemService
 
     try {
       QueryOrderRequest request = generator.read(model, QueryOrderRequest.class);
-      log.info("FWC QueryOrder | Simulation={} | Payload={}", simulation, request);
+      boolean isSimulation = itosConfig.isSimulationEnabled(request.getClientId());
+      log.info("FWC QueryOrder | Simulation={} | Payload={}", isSimulation, request);
 
-      return simulation
+      return isSimulation
           ? simulateFwcQueryOrder(request, valuesBuilder)
           : callFwcGetOrder(request, valuesBuilder);
 
