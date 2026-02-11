@@ -19,7 +19,9 @@ import at.compax.reference.subsystem.fwclogistic.constants.Constants;
 import at.compax.reference.subsystem.fwclogistic.constants.ResponseConstants;
 import at.compax.reference.subsystem.fwclogistic.generator.Generator;
 import at.compax.reference.subsystem.fwclogistic.model.request.SendOrderRequest;
+import at.compax.reference.subsystem.fwclogistic.model.response.FwcOrderResponse;
 import at.compax.reference.subsystem.fwclogistic.tanslator.OrderRequestTranslator;
+import at.compax.reference.subsystem.fwclogistic.utils.FwcDummyDataGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,6 +33,7 @@ public class SendOrderService extends AbstractService implements SubsystemServic
   private final OrderRequestTranslator orderRequestTranslator;
   private final Generator generator;
   private final ObjectMapper mapper;
+  private final FwcDummyDataGenerator dummyDataGenerator;
 
   @Override
   public PayloadCreationResponseModel createRequest(PayloadCreationModel model) {
@@ -75,58 +78,65 @@ public class SendOrderService extends AbstractService implements SubsystemServic
       SendOrderRequest request,
       ValuesBuilder valuesBuilder
   ) {
-    PayloadSendingResponseModel responseModel = new PayloadSendingResponseModel();
+    try {
+      // client validation
+      if (request.getClientId() == null) {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "Client not found");
+        return new PayloadSendingResponseModel()
+            .values(valuesBuilder.toValues());
+      }
 
-    // client validation
-    if (request.getClientId() == null) {
+      // reference number validation
+      if (request.getReferenceNum() == null || request.getReferenceNum().isBlank()) {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "Invalid reference number");
+
+        return new PayloadSendingResponseModel()
+            .values(valuesBuilder.toValues());
+      }
+
+      // shipping address validation
+      if (request.getShipTo() == null) {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "Shipping address missing");
+
+        return new PayloadSendingResponseModel()
+            .values(valuesBuilder.toValues());
+      }
+
+      // order items validation
+      if (request.getOrderItems() == null || request.getOrderItems().isEmpty()) {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "No order items");
+
+        return new PayloadSendingResponseModel()
+            .values(valuesBuilder.toValues());
+      }
+
+      // quantity validation
+      boolean invalidQty = request.getOrderItems().stream()
+          .anyMatch(item -> item.getQty() <= 0);
+
+      if (invalidQty) {
+        valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
+        valuesBuilder.addValue(ResponseConstants.MESSAGE, "Invalid quantity");
+
+        return new PayloadSendingResponseModel()
+            .values(valuesBuilder.toValues());
+      }
+
+      // success with dummy data
+      FwcOrderResponse response = dummyDataGenerator.generateDummyOrderResponse(request.getReferenceNum());
+      valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_SUCCESS);
+      valuesBuilder.addValue(ResponseConstants.MESSAGE, "Send order successful");
+      valuesBuilder.addValue(Constants.VALUE, mapper.writeValueAsString(response));
+
+    } catch (Exception e) {
+      log.error("Simulation failed", e);
       valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
-      valuesBuilder.addValue(ResponseConstants.MESSAGE, "Client not found");
-      return new PayloadSendingResponseModel()
-          .values(valuesBuilder.toValues());
+      valuesBuilder.addValue(ResponseConstants.MESSAGE, e.getMessage());
     }
-
-    // reference number validation
-    if (request.getReferenceNum() == null || request.getReferenceNum().isBlank()) {
-      valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
-      valuesBuilder.addValue(ResponseConstants.MESSAGE, "Invalid reference number");
-
-      return new PayloadSendingResponseModel()
-          .values(valuesBuilder.toValues());
-    }
-
-    // shipping address validation
-    if (request.getShipTo() == null) {
-      valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
-      valuesBuilder.addValue(ResponseConstants.MESSAGE, "Shipping address missing");
-
-      return new PayloadSendingResponseModel()
-          .values(valuesBuilder.toValues());
-    }
-
-    // order items validation
-    if (request.getOrderItems() == null || request.getOrderItems().isEmpty()) {
-      valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
-      valuesBuilder.addValue(ResponseConstants.MESSAGE, "No order items");
-
-      return new PayloadSendingResponseModel()
-          .values(valuesBuilder.toValues());
-    }
-
-    // quantity validation
-    boolean invalidQty = request.getOrderItems().stream()
-        .anyMatch(item -> item.getQty() <= 0);
-
-    if (invalidQty) {
-      valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_FAIL);
-      valuesBuilder.addValue(ResponseConstants.MESSAGE, "Invalid quantity");
-
-      return new PayloadSendingResponseModel()
-          .values(valuesBuilder.toValues());
-    }
-
-    // success
-    valuesBuilder.addValue(ResponseConstants.STATUS, ResponseConstants.RETURN_CODE_SUCCESS);
-    valuesBuilder.addValue(ResponseConstants.MESSAGE, "Send order successful");
 
     return new PayloadSendingResponseModel()
         .values(valuesBuilder.toValues());
